@@ -17,24 +17,29 @@ class Calculator:
         """
         Считает сколько единиц израсходавано сегодня
         """
-        result = 0
-        now_date = dt.datetime.now().date()
-        for item in self.records:
-            if item.date == now_date:
-                result += item.amount
+        now = dt.date.today()
+        result = sum(item.amount for item in self.records
+                     if item.date == now)
         return result
 
     def get_week_stats(self):
         """
         Считает сколько единиц израсходавано за последние 7 дней
         """
-        result = 0
-        now_date = dt.datetime.now().date()
-        for item in self.records:
-            period = now_date - item.date
-            if dt.timedelta(days=0) <= period < dt.timedelta(days=7):
-                result += item.amount
+        now = dt.date.today()
+        start_period = now - dt.timedelta(days=7)
+        result = sum(item.amount for item in self.records
+                     if now >= item.date >= start_period)
         return result
+
+    def get_avaible_amount(self, today_balance, limit=None):
+        """
+        Принимает баланс текущего дня.
+        Вычисляет и возвращает доступный остаток на текущий день.
+        """
+        if limit is None:
+            return self.limit - today_balance
+        return limit - today_balance
 
 
 class CaloriesCalculator(Calculator):
@@ -44,8 +49,8 @@ class CaloriesCalculator(Calculator):
         """
         today_balance = self.get_today_stats()
         if self.limit > today_balance:
-            avaible_amount = self.limit - today_balance
-            return (f'Сегодня можно съесть что-нибудь ещё, но с общей'
+            avaible_amount = self.get_avaible_amount(today_balance)
+            return ('Сегодня можно съесть что-нибудь ещё, но с общей'
                     f' калорийностью не более {avaible_amount} кКал')
         return 'Хватит есть!'
 
@@ -60,57 +65,25 @@ class CashCalculator(Calculator):
         Возвращает сообщение о состоянии дневного баланса в этой валюте,
         округляя сумму до двух знаков после запятой (до сотых)
         """
-        currency_translate = {
-            'rub': 'руб',
-            'usd': 'USD',
-            'eur': 'Euro'
+        # Словарь хранит кортеж, в котором:
+        # нулевой элемент - текстовое представление валюты
+        # первый элемент - текущий курс конвертирования
+        currency_convert = {
+            'rub': ('руб', 1),
+            'usd': ('USD', CashCalculator.USD_RATE),
+            'eur': ('Euro', CashCalculator.EURO_RATE)
         }
-        today_balance = self.get_today_stats()
-        if currency == 'usd':
-            today_balance = self.convert_usd_rub(today_balance)
-            limit = self.convert_usd_rub(self.limit)
-        elif currency == 'eur':
-            today_balance = self.convert_eur_rub(today_balance)
-            limit = self.convert_eur_rub(self.limit)
-        else:
-            limit = self.limit
+        today_balance = self.get_today_stats() / currency_convert[currency][1]
+        limit = self.limit / currency_convert[currency][1]
 
-        balance = round(limit - today_balance, 2)
-        currency = currency_translate[currency]
+        balance = round(self.get_avaible_amount(today_balance, limit), 2)
+        currency = currency_convert[currency][0]
         if balance > 0:
             return f'На сегодня осталось {balance} {currency}'
         if balance < 0:
             balance = -balance
             return f'Денег нет, держись: твой долг - {balance} {currency}'
         return 'Денег нет, держись'
-
-    def convert_usd_rub(self, amount):
-        """
-        Принимает на вход сумму в долларах
-        возвращает в рублях
-        """
-        return amount / CashCalculator.USD_RATE
-
-    def convert_eur_rub(self, amount):
-        """
-        Принимает на вход сумму в евро
-        возвращает в рублях
-        """
-        return amount / CashCalculator.EURO_RATE
-
-    def convert_rub_usd(self, amount):
-        """
-        Принимает на вход сумму в рублях
-        возвращает в долларах
-        """
-        return amount * CashCalculator.USD_RATE
-
-    def convert_rub_eur(self, amount):
-        """
-        Принимает на вход сумму в рублях
-        возвращает в евро
-        """
-        return amount * CashCalculator.EURO_RATE
 
 
 class Record:
@@ -138,6 +111,6 @@ class Record:
         текущее состояние даты и времени dt.datetime.now()
         """
         if date is None:
-            return dt.datetime.now().date()
-        day, month, year = map(int, date.split('.'))
-        return dt.datetime(year=year, month=month, day=day).date()
+            return dt.date.today()
+        date_format = '%d.%m.%Y'
+        return dt.datetime.strptime(date, date_format).date()
