@@ -7,15 +7,18 @@ class Calculator:
         self.records = []
 
     def add_record(self, item):
-        """
-        Принимает на входе экземляр класса Record
-        добавляет его в список записей records
+        """Добавляет элемент в список записей records.
+
+        Parameters:
+            item (Record): новая запись.
         """
         self.records.append(item)
 
     def get_today_stats(self):
-        """
-        Считает сколько единиц израсходавано сегодня
+        """Считает сколько единиц израсходавано сегодня.
+
+        Returns:
+            today_stats (int): сумма за текущий день.
         """
         now = dt.date.today()
         result = sum(item.amount for item in self.records
@@ -23,33 +26,36 @@ class Calculator:
         return result
 
     def get_week_stats(self):
-        """
-        Считает сколько единиц израсходавано за последние 7 дней
+        """Считает сколько единиц израсходавано за последние 7 дней
+
+        Returns:
+            week_stats (int): сумма за последние 7 дней.
         """
         now = dt.date.today()
         start_period = now - dt.timedelta(days=7)
         result = sum(item.amount for item in self.records
-                     if now >= item.date >= start_period)
+                     if now >= item.date > start_period)
         return result
 
-    def get_avaible_amount(self, today_balance, limit=None):
+    def get_avaible_amount(self):
+        """Вычисляет и возвращает доступный остаток на текущий день.
+
+        Returns:
+            avaible_amount (int): доступный остаток на текущий день.
         """
-        Принимает баланс текущего дня.
-        Вычисляет и возвращает доступный остаток на текущий день.
-        """
-        if limit is None:
-            return self.limit - today_balance
-        return limit - today_balance
+        return self.limit - self.get_today_stats()
 
 
 class CaloriesCalculator(Calculator):
     def get_calories_remained(self):
-        """
-        Определяет, сколько ещё калорий можно/нужно получить сегодня
+        """Определяет, сколько ещё калорий можно/нужно получить сегодня.
+
+        Returns:
+            calories_remained (str): сообщение о состоянии дневного баланса.
         """
         today_balance = self.get_today_stats()
         if self.limit > today_balance:
-            avaible_amount = self.get_avaible_amount(today_balance)
+            avaible_amount = self.get_avaible_amount()
             return ('Сегодня можно съесть что-нибудь ещё, но с общей'
                     f' калорийностью не более {avaible_amount} кКал')
         return 'Хватит есть!'
@@ -60,10 +66,14 @@ class CashCalculator(Calculator):
     EURO_RATE = 92.12
 
     def get_today_cash_remained(self, currency):
-        """
-        принимает на вход код валюты: одну из строк "rub", "usd" или "eur".
-        Возвращает сообщение о состоянии дневного баланса в этой валюте,
-        округляя сумму до двух знаков после запятой (до сотых)
+        """Считает дневной баланс средств.
+
+        Parameters:
+            currency (str): строка, указывающая тип валюты (usd, eur, rub ...)
+
+        Returns:
+            today_cash_remained (str): сообщение о состоянии дневного баланса
+        округленное до двух знаков после запятой (до сотых).
         """
         # Словарь хранит кортеж, в котором:
         # нулевой элемент - текстовое представление валюты
@@ -73,27 +83,26 @@ class CashCalculator(Calculator):
             'usd': ('USD', CashCalculator.USD_RATE),
             'eur': ('Euro', CashCalculator.EURO_RATE)
         }
-        today_balance = self.get_today_stats() / currency_convert[currency][1]
-        limit = self.limit / currency_convert[currency][1]
-
-        balance = round(self.get_avaible_amount(today_balance, limit), 2)
-        currency = currency_convert[currency][0]
+        currency_, rate = currency_convert[currency]
+        balance = self.get_avaible_amount()
+        if self.get_today_stats() and currency != 'rub':
+            balance /= rate
+        balance = round(balance, 2)
         if balance > 0:
-            return f'На сегодня осталось {balance} {currency}'
+            return f'На сегодня осталось {balance} {currency_}'
         if balance < 0:
             balance = -balance
-            return f'Денег нет, держись: твой долг - {balance} {currency}'
+            return f'Денег нет, держись: твой долг - {balance} {currency_}'
         return 'Денег нет, держись'
 
 
 class Record:
-    """
-    Класс характеризующий записи, принимает на вход три аргумента:
-    amount - величина (по-умолчанию 0),
-    comment - комментарий к записи (по-умолчанию - пустая строка (''),
-    date - дата записи (по-умолчанию None, требуется обработка
-    втроенным конвертором даты get_date(). Конвертация запускается
-    при инициализации объекта.
+    """Класс характеризующий записи.
+
+    Parameters:
+        amount (int): Величина (if defined),
+        comment (str): Комментарий к записи (if defined),
+        date (str): Дата записи (if defined).
     """
 
     def __init__(self, amount=0, comment='', date=None):
@@ -102,13 +111,15 @@ class Record:
         self.comment = comment
 
     def get_date(self, date):
-        """
-        Принимает на вход аргумент date, тип которого зависит от
-        конструктора класса. Если в конструктор явно передали дату,
-        то type(date) -> str будет преобразован в формат dt.datetime,
-        и в таком виде будет возвращен в точку вызова.
-        Если в конструктор явно не передавали дату, то метод вернет
-        текущее состояние даты и времени dt.datetime.now()
+        """Конвертер даты.
+            Возвращает дату в формате date.
+
+        Parameters:
+            Тип date зависит от конструктора класса.
+                date (str):  строка даты вида ДД.ММ.ГГГГ (if defined)
+
+        Returns:
+            date (datetime.date()): дата
         """
         if date is None:
             return dt.date.today()
