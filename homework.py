@@ -82,9 +82,10 @@ class CashCalculator(Calculator):
             'usd': ('USD', CashCalculator.USD_RATE),
             'eur': ('Euro', CashCalculator.EURO_RATE)
         }
-        assert currency in currency_convert, ('Это никогда не должно '
-                                              'произойти, но мы не '
-                                              'работаем с такой валютой')
+        if currency not in currency_convert:
+            raise ValueError('Это никогда не должно '
+                             'произойти, но мы не '
+                             'работаем с такой валютой')
         currency_, rate = currency_convert[currency]
         balance = self.get_avaible_amount()
         if balance != 0 and currency != 'rub':
