@@ -53,9 +53,8 @@ class CaloriesCalculator(Calculator):
         Returns:
             calories_remained (str): сообщение о состоянии дневного баланса.
         """
-        today_balance = self.get_today_stats()
-        if self.limit > today_balance:
-            avaible_amount = self.get_avaible_amount()
+        avaible_amount = self.get_avaible_amount()
+        if avaible_amount > 0:
             return ('Сегодня можно съесть что-нибудь ещё, но с общей'
                     f' калорийностью не более {avaible_amount} кКал')
         return 'Хватит есть!'
@@ -83,9 +82,12 @@ class CashCalculator(Calculator):
             'usd': ('USD', CashCalculator.USD_RATE),
             'eur': ('Euro', CashCalculator.EURO_RATE)
         }
+        assert currency in currency_convert, ('Это никогда не должно '
+                                              'произойти, но мы не '
+                                              'работаем с такой валютой')
         currency_, rate = currency_convert[currency]
         balance = self.get_avaible_amount()
-        if self.get_today_stats() and currency != 'rub':
+        if balance != 0 and currency != 'rub':
             balance /= rate
         balance = round(balance, 2)
         if balance > 0:
